@@ -10,6 +10,14 @@ class Parser {
         this.tokens = tokens;
     }
 
+    Expr parse(){
+        try{
+            return expression();
+        }catch(ParseError error){
+        return null;
+        }
+    }
+
     private Expr expression(){
         return equality();
     }
@@ -80,6 +88,7 @@ class Parser {
             consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
+        throw error(peek(), "Expect expression.");
     }
 
     private boolean match(TokenType... types){
@@ -122,6 +131,19 @@ class Parser {
     private ParseError error(Token token, String message){
         Lox.error(token, message);
         return new ParseError();
+    }
+
+    private void synchronize(){
+        advance();
+        while(!isAtEnd()){
+            if(previous().type == TokenType.SEMICOLON) return;
+            switch(peek().type){
+                case TokenType.CLASS: case TokenType.FOR: case TokenType.FUN: case TokenType.IF: case TokenType.PRINT:
+                case TokenType.RETURN: case TokenType.VAR: case TokenType.WHILE:
+                return;
+            }
+            advance();
+        }
     }
 
 }

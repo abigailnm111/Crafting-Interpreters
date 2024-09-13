@@ -6,7 +6,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Scanner;
 
 public class Lox {
 
@@ -37,7 +36,7 @@ private static void runPrompt() throws IOException{
     // for(;;) is an infinate loop. Initializer and termination statements are empty.
     for(;;){
         System.out.print(">");
-        String line= reader.readLine();
+        String line= render.readLine();
         if (line==null) break;
         run(line);
 
@@ -50,9 +49,12 @@ private static void run(String source){
     Scanner scanner= new Scanner(source);
     List<Token> tokens= scanner.scanTokens();
 
-    for(Token token: tokens){
-        System.out.println(token);
-    }
+    Parser parser=new Parser(tokens);
+    Expr expression = parser.parse();
+
+    if(hadError) return;
+
+    System.out.println(new AstPrinter().print(expression));
 }
 
 static void error(int line, String message){
