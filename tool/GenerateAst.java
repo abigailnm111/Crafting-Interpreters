@@ -17,7 +17,11 @@ public class GenerateAst {
                 "Binary   : Expr left, Token operator, Expr right",
                 "Grouping  : Expr expression",
                 "Literal   : Object value",
-                "Unary    : Token operator, Expr right"));
+                "Unary    : Token operator, Expr right", "Variable: Token name"));
+
+        defineAst(outputDir, "Stmt", Arrays.asList("Expression : Expr expression", "Print : Expr expression",
+                "Var : Token name, Expr initializer"));
+
     }
 
     private static void defineAst(
@@ -40,22 +44,21 @@ public class GenerateAst {
         writer.println();
         writer.println("   abstract <R> R accept(Visitor<R> visitor);");
 
-
         writer.println("}");
         writer.close();
-
 
     }
 
     private static void defineVisitor(
-        PrintWriter writer, String baseName, List<String> types){
-            writer.println("   interface Visitor<R>  {");
-            for (String type : types){
-                String typeName = type.split(":")[0].trim();
-                writer.println("      R visit"+ typeName+ baseName +"("+ typeName+ " "+ baseName.toLowerCase()+ ");");
-            }
-            writer.println("   }");
+            PrintWriter writer, String baseName, List<String> types) {
+        writer.println("   interface Visitor<R>  {");
+        for (String type : types) {
+            String typeName = type.split(":")[0].trim();
+            writer.println(
+                    "      R visit" + typeName + baseName + "(" + typeName + " " + baseName.toLowerCase() + ");");
         }
+        writer.println("   }");
+    }
 
     private static void defineType(
             PrintWriter writer, String baseName,
@@ -70,10 +73,10 @@ public class GenerateAst {
         writer.println("     }");
 
         writer.println();
-        writer.println("      @Override");  
+        writer.println("      @Override");
         writer.println("     <R> R accept(Visitor<R> visitor) {");
-        writer.println("   return visitor.visit"+ className+ baseName+ "(this);");
-        writer.println("    }"); 
+        writer.println("   return visitor.visit" + className + baseName + "(this);");
+        writer.println("    }");
 
         writer.println();
         for (String field : fields) {
@@ -81,7 +84,6 @@ public class GenerateAst {
         }
 
         writer.println("    }");
-
 
     }
 
