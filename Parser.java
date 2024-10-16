@@ -231,7 +231,38 @@ class Parser {
             Expr right = unary();
             return new Expr.Unary(operator, right);
         }
-        return primary();
+        return call();
+    }
+
+    /**Checks if there is a right Paren, then if not, adds an expression call to arguments as long as the token matches commas */
+    private Expr finishCall(Expr callee){
+        List<Expr> arguments = new ArrayList<>();
+
+        if(!check(TokenType.RIGHT_PAREN)){
+            do{
+                //java imposed limit, adding to make interpreter compatible.
+                if(arguments.size()>= 255){
+                    error(peek(), "Can't have more then 255 argumlents.");
+                }
+                arguments.add(expression());
+            }while( match(TokenType.COMMA));
+        }
+        Token paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+        return new Expr.Call(callee, paren, arguments);
+    }
+
+    /** Checks for match() of left paraentheses then returns either a primary expression if doesnt match calls finishCall to return expression */
+    private Expr call(){
+        Expr expr = primary();
+
+        while(true){
+            if(match(TokenType.LEFT_PAREN)){
+                expr = finishCall(expr);
+            }else{
+                break;
+            }
+        }
+        return expr;
     }
 
     private Expr primary() {
@@ -258,6 +289,8 @@ class Parser {
         throw error(peek(), "Expect expression.");
     }
 
+
+    /**Uses check() to check for the token type and advance */
     private boolean match(TokenType... types) {
         for (TokenType type : types) {
             if (check(type)) {
@@ -268,32 +301,40 @@ class Parser {
         return false;
     }
 
+
+    /**Uses check() to see if the current token matches and if so, uses advance() to go to the next token */
     private Token consume(TokenType type, String message) {
         if (check(type))
             return advance();
         throw error(peek(), message);
     }
 
+    /**Uses peek() to check the current token type  */
     private boolean check(TokenType type) {
         if (isAtEnd())
             return false;
         return peek().type == type;
     }
 
+    /**If not EOF token, goes to the next token, but returns current token */
     private Token advance() {
         if (!isAtEnd())
             current++;
         return previous();
     }
 
+
+    /**Checks if the current token is EOF(End of File) */
     private boolean isAtEnd() {
         return peek().type == TokenType.EOF;
     }
 
+    /**Gets the current Token */
     private Token peek() {
         return tokens.get(current);
     }
 
+    /** Looks at token preceeding current token */
     private Token previous() {
         return tokens.get(current - 1);
     }
