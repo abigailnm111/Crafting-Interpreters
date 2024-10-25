@@ -27,6 +27,8 @@ class Parser {
 
     private Stmt declaration() {
         try {
+            if (match(TokenType.FUN))
+                return function("function");
             if (match(TokenType.VAR))
                 return varDeclaration();
             return statement();
@@ -42,6 +44,8 @@ class Parser {
         if (match(TokenType.IF))
             return ifStatement();
         if (match(TokenType.PRINT))
+            return printStatement();
+        if (match(TokenType.RETURN))
             return printStatement();
         if (match(TokenType.WHILE))
             return whileStatement();
@@ -62,27 +66,28 @@ class Parser {
             initialzier = expressionStatement();
         }
         Expr condition = null;
-        if(!check(TokenType.SEMICOLON)){
+        if (!check(TokenType.SEMICOLON)) {
             condition = expression();
         }
         consume(TokenType.SEMICOLON, "Expect ';' after loop condition.");
 
-        Expr increment =null;
-        if(!check(TokenType.RIGHT_PAREN)){
-            increment= expression();
+        Expr increment = null;
+        if (!check(TokenType.RIGHT_PAREN)) {
+            increment = expression();
         }
         consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.");
 
         Stmt body = statement();
 
-        if(increment != null){
+        if (increment != null) {
             body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
         }
 
-        if(condition == null) condition = new Expr.Literal(true);
+        if (condition == null)
+            condition = new Expr.Literal(true);
         body = new Stmt.While(condition, body);
 
-        if(initialzier!= null){
+        if (initialzier != null) {
             body = new Stmt.Block(Arrays.asList(initialzier, body));
         }
 
@@ -108,6 +113,16 @@ class Parser {
         return new Stmt.Print(value);
     };
 
+    private Stmt returnStatement(){
+        Token keyword= previous();
+        Expr value = null;
+        if(!check(TokenType.SEMICOLON)){
+            value= expression();
+        }
+        consume(TokenType.SEMICOLON, "Expect ';' after return value.");
+        return new Stmt.Return(keyword, value);
+    }
+
     private Stmt varDeclaration() {
         Token name = consume(TokenType.IDENTIFIER, "Expect variable name.");
         Expr initializer = null;
@@ -131,6 +146,24 @@ class Parser {
         Expr expr = expression();
         consume(TokenType.SEMICOLON, "Expect ';' after expression.");
         return new Stmt.Expression(expr);
+    }
+
+    private Stmt.Function function(String kind) {
+        Token name = consume(TokenType.IDENTIFIER, "Expect " + kind + "name.");
+        consume(TokenType.LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        List<Token> parameters = new ArrayList<>();
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (parameters.size() >= 255) {
+                    error(peek(), "Cant have more then 255 parameters.");
+                }
+                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."));
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+        consume(TokenType.LEFT_BRACE, "Expect '{' before " + kind + "body.");
+        List<Stmt> body = block();
+        return new Stmt.Function(name, parameters, body);
     }
 
     private List<Stmt> block() {
@@ -234,31 +267,37 @@ class Parser {
         return call();
     }
 
-    /**Checks if there is a right Paren, then if not, adds an expression call to arguments as long as the token matches commas */
-    private Expr finishCall(Expr callee){
+    /**
+     * Checks if there is a right Paren, then if not, adds an expression call to
+     * arguments as long as the token matches commas
+     */
+    private Expr finishCall(Expr callee) {
         List<Expr> arguments = new ArrayList<>();
 
-        if(!check(TokenType.RIGHT_PAREN)){
-            do{
-                //java imposed limit, adding to make interpreter compatible.
-                if(arguments.size()>= 255){
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                // java imposed limit, adding to make interpreter compatible.
+                if (arguments.size() >= 255) {
                     error(peek(), "Can't have more then 255 argumlents.");
                 }
                 arguments.add(expression());
-            }while( match(TokenType.COMMA));
+            } while (match(TokenType.COMMA));
         }
         Token paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
         return new Expr.Call(callee, paren, arguments);
     }
 
-    /** Checks for match() of left paraentheses then returns either a primary expression if doesnt match calls finishCall to return expression */
-    private Expr call(){
+    /**
+     * Checks for match() of left paraentheses then returns either a primary
+     * expression if doesnt match calls finishCall to return expression
+     */
+    private Expr call() {
         Expr expr = primary();
 
-        while(true){
-            if(match(TokenType.LEFT_PAREN)){
+        while (true) {
+            if (match(TokenType.LEFT_PAREN)) {
                 expr = finishCall(expr);
-            }else{
+            } else {
                 break;
             }
         }
@@ -289,8 +328,7 @@ class Parser {
         throw error(peek(), "Expect expression.");
     }
 
-
-    /**Uses check() to check for the token type and advance */
+    /** Uses check() to check for the token type and advance */
     private boolean match(TokenType... types) {
         for (TokenType type : types) {
             if (check(type)) {
@@ -301,35 +339,36 @@ class Parser {
         return false;
     }
 
-
-    /**Uses check() to see if the current token matches and if so, uses advance() to go to the next token */
+    /**
+     * Uses check() to see if the current token matches and if so, uses advance() to
+     * go to the next token
+     */
     private Token consume(TokenType type, String message) {
         if (check(type))
             return advance();
         throw error(peek(), message);
     }
 
-    /**Uses peek() to check the current token type  */
+    /** Uses peek() to check the current token type */
     private boolean check(TokenType type) {
         if (isAtEnd())
             return false;
         return peek().type == type;
     }
 
-    /**If not EOF token, goes to the next token, but returns current token */
+    /** If not EOF token, goes to the next token, but returns current token */
     private Token advance() {
         if (!isAtEnd())
             current++;
         return previous();
     }
 
-
-    /**Checks if the current token is EOF(End of File) */
+    /** Checks if the current token is EOF(End of File) */
     private boolean isAtEnd() {
         return peek().type == TokenType.EOF;
     }
 
-    /**Gets the current Token */
+    /** Gets the current Token */
     private Token peek() {
         return tokens.get(current);
     }
